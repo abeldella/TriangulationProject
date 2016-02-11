@@ -29,6 +29,7 @@
 # Visual Temp
 *.suo
 *.sdf
+*.opendb
 /.vs
 /Debug
 /Lab2_2010/Debug
