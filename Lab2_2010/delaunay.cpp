@@ -66,6 +66,7 @@ void Delaunay::init(const std::vector<Point>& ipoints)
 	assert(ipoints.size() >= 3 && "Cannot triangulate less than 3 points");
 	this->ipoints = ipoints;
 	points.clear();
+	triangles.clear();
 	count=0;
 }
 
