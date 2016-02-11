@@ -20,7 +20,6 @@
 *.lai
 *.la
 *.a
-*.lib
 
 # Executables
 *.exe
@@ -30,4 +29,6 @@
 # Visual Temp
 *.suo
 *.sdf
-.vs
+/.vs
+/Debug
+/Lab2_2010/Debug
