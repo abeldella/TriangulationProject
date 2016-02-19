@@ -39,6 +39,24 @@ Point& Point::operator=(const Point& p)
 	return (*this);
 }
 
+Circle::Circle()
+{
+
+}
+
+Circle::Circle(Point c, float r)
+{
+	this->c = c;
+	this->r = r;
+}
+
+Circle &Circle::operator=(const Circle &circle)
+{
+	c = circle.c;
+	r = circle.r;
+	return (*this);
+}
+
 float DotProduct(const Point& p0, const Point& p1)
 {
 	return p0.x*p1.x+p0.y*p1.y;
@@ -46,13 +64,39 @@ float DotProduct(const Point& p0, const Point& p1)
 
 bool Circumcircle(const Point& p0,const Point& p1,const Point& p2,Point& center, float& radius)
 {
-	return false;
+	float dA, dB, dC, aux1, aux2, div;
+
+	dA = p0.x * p0.x + p0.y * p0.y;
+	dB = p1.x * p1.x + p1.y * p1.y;
+	dC = p2.x * p2.x + p2.y * p2.y;
+
+	aux1 = (dA*(p2.y - p1.y) + dB*(p0.y - p2.y) + dC*(p1.y - p0.y));
+	aux2 = -(dA*(p2.x - p1.x) + dB*(p0.x - p2.x) + dC*(p1.x - p0.x));
+	div = (2 * (p0.x*(p2.y - p1.y) + p1.x*(p0.y - p2.y) + p2.x*(p1.y - p0.y)));
+
+	if (div == 0) {
+		return false;
+	}
+
+	center.x = aux1 / div;
+	center.y = aux2 / div;
+
+	radius = sqrt((center.x - p0.x)*(center.x - p0.x) + (center.y - p0.y)*(center.y - p0.y));
+
+	return true;
 }
 
 
 bool PointInCircle(const Point& p, const Point& center, float r)
 {
-	return false;
+	float distance;
+
+	distance = sqrt((double)(center.x - p.x)*(center.x - p.x) + (center.y - p.y)*(center.y - p.y));
+
+	if (distance <= r)
+		return true;
+	else
+		return false;
 }
 
 /*******************************************************************************/
@@ -91,28 +135,13 @@ void Delaunay::removeTriangle(triangle* t)
 
 void Delaunay::computeSupertriangle(const std::vector<Point>& ipoints)
 {
-	/*
-	auto min_max_X = minmax_element(ipoints.begin(), ipoints.end(),
-		[](Point left, Point right) {return left.x < right.x; });
-	auto min_max_Y = minmax_element(ipoints.begin(), ipoints.end(),
-		[](Point left, Point right) {return left.y < right.y; });
-
-	float minX = min_max_X.first->x;
-	float minY = min_max_Y.first->y;
-
-	float maxX = min_max_X.second->x;
-	float maxY = min_max_Y.second->y;
-
-	cout << "X: min " << minX << " // max " << maxX << endl;
-	cout << "Y: min " << minY << " // max " << maxY << endl;
-
-	*/
 	points.clear();
 	points.reserve(ipoints.size() + 3);
 
 	float M = -FLT_MAX;
 	unsigned int i;
-	for (i = 0; i < ipoints.size(); i++) {
+	for (i = 0; i < ipoints.size(); i++) 
+	{
 		M = max(fabs(ipoints[i].x), M);
 		M = max(fabs(ipoints[i].y), M);
 	}
@@ -120,20 +149,26 @@ void Delaunay::computeSupertriangle(const std::vector<Point>& ipoints)
 	assert(M != FLT_MAX);
 
 	Point p;
-	//p_ -1
-	p.x = 3 * M; p.y = 0;
+	float scale = 4.0;
+
+	// Point 1
+	p.x = scale * M; 
+	p.y = 0;
 	points.push_back(p);
 
-	//p_ -2
-	p.x = 0; p.y = 3 * M;
+	// Point 2
+	p.x = 0; 
+	p.y = scale * M;
 	points.push_back(p);
 
-	//p_ -3
-	p.x = -3 * M; p.y = -3 * M;
+	// Point 3
+	p.x = -1 * scale * M; 
+	p.y = -1 * scale * M;
 	points.push_back(p);
 
-	//add the remainder points
-	for (i = 0; i < ipoints.size(); i++) {
+	// Add the remainder points
+	for (i = 0; i < ipoints.size(); i++) 
+	{
 		points.push_back(ipoints[i]);
 	}
 		
@@ -149,17 +184,37 @@ bool Delaunay::ready() const
 
 void Delaunay::step()
 {
-	if (count == 0) computeSupertriangle(ipoints);
+	if (count == 0) 
+		computeSupertriangle(ipoints);
+	else
+	{
+		if (count < ipoints.size() + 3)
+		{
+			// Pasos intermedios
+			std::vector<triangle *> containers;
+			findTrianglesWhoseCircumcircleContainsPoint(points[count], containers);
+			
+		}
+		else
+		{
+			// Borrar supertriangulo y sus lineas
+		}
+	}
 }
-
 
 void Delaunay::findTrianglesWhoseCircumcircleContainsPoint(const Point& r, std::vector<triangle*>& containers) const
-{	
-}
+{
+	std::map<triangle*, triangle*>::const_iterator it;
 
+	for (it = triangles.begin(); it != triangles.end(); it++)
+	{
+
+	}
+}
 
 void Delaunay::computeBoundary(const std::vector<triangle*>& region, std::vector<unsigned int>& boundary) const
 {
+
 }
 
 void Delaunay::deleteInvalidTriangles(std::vector<triangle*>& triangles)
@@ -173,7 +228,6 @@ void Delaunay::triangulateCavity(const unsigned int r, const std::vector<unsigne
 void Delaunay::deleteTrianglesWithSupertriangleVertexs()
 {
 }
-
 
 // rendering functions (for debugging purposes)
 
@@ -286,4 +340,5 @@ void Delaunay::renderCurrentTriangles()
 
 void Delaunay::renderCurrentCircles()
 {
+
 }
