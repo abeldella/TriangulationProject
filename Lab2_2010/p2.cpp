@@ -25,7 +25,7 @@ Delaunay delaunay;
 bool renderAllCircles = false;
 bool renderCurrentCircles = false;
 bool renderCurrentBoundary = false;
-int shape = 0;
+int shape = -1;
 
 
 void 
@@ -45,7 +45,8 @@ void init()
 	int i,j,k;
 // some predefined shapes
 
-	points.clear();
+	if (shape != -1)
+		points.clear();
 
 	if (shape==0)
 	{
@@ -110,13 +111,10 @@ void triangulate()
 {
 	if (delaunay.ready())
 		delaunay.step();
-	else
+	else if (points.size() >= 3)
 	{
-		if (points.size() >= 3)
-		{
-			init();
-			delaunay.step();
-		}
+		init();
+		delaunay.step();
 	}
 }
 
@@ -147,10 +145,11 @@ display(void)
 	
 	delaunay.renderCurrentTriangles();
 	delaunay.renderCurrentVertexs();
+	delaunay.renderIndex();
 
 	if (renderCurrentCircles)
 		delaunay.renderCurrentCircles();
-		
+
 	if (renderCurrentBoundary)
 		delaunay.renderCurrentBoundary();
 
@@ -167,12 +166,12 @@ reshape(int w, int h)
 {
 	width = w;
 	height = h;
-  glViewport (0, 0, width, height);
-  glMatrixMode (GL_PROJECTION);
-  glLoadIdentity ();
-  gluOrtho2D (-extents, extents, -extents, extents);
-  glMatrixMode (GL_MODELVIEW);
-  glLoadIdentity ();
+	glViewport(0, 0, width, height);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluOrtho2D(-extents, extents, -extents, extents);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 };
 
 void mouse(int button, int state, int x, int y)
@@ -180,12 +179,8 @@ void mouse(int button, int state, int x, int y)
 	if (button == GLUT_LEFT_BUTTON)
 	{
 		if (state == GLUT_DOWN )
-		points.push_back(
-		Point(
-		-extents+ x*(extents*2/width),
-		extents+ y*(-extents*2/height)
-		)
-		);
+			points.push_back(Point(-extents + x*(extents * 2 / width),
+					extents + y*(-extents * 2 / height)));
 	}
 }
 

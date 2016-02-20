@@ -7,55 +7,6 @@
 #define max(a,b) (((a)>(b))?(a):(b)) 
 #define min(a,b) (((a)<(b))?(a):(b)) 
 
-Point::Point()
-{
-}
-
-Point::Point(float X, float Y):
-x(X),y(Y)
-{
-}
-
-Point operator+(const Point& p0, const Point& p1)
-{
-	return Point(p0.x+p1.x,p0.y+p1.y);
-}
-
-Point operator-(const Point& p0, const Point& p1)
-{
-	return Point(p0.x-p1.x,p0.y-p1.y);
-}
-
-Point operator*(const Point& p0,float f)
-{
-	return Point(p0.x*f,p0.y*f);
-}
-
-
-Point& Point::operator=(const Point& p)
-{
-	x = p.x;
-	y = p.y;
-	return (*this);
-}
-
-Circle::Circle()
-{
-
-}
-
-Circle::Circle(Point c, float r)
-{
-	this->c = c;
-	this->r = r;
-}
-
-Circle &Circle::operator=(const Circle &circle)
-{
-	c = circle.c;
-	r = circle.r;
-	return (*this);
-}
 
 float DotProduct(const Point& p0, const Point& p1)
 {
@@ -99,6 +50,7 @@ bool PointInCircle(const Point& p, const Point& center, float r)
 		return false;
 }
 
+
 /*******************************************************************************/
 
 Delaunay::Delaunay()
@@ -111,7 +63,9 @@ void Delaunay::init(const std::vector<Point>& ipoints)
 	this->ipoints = ipoints;
 	points.clear();
 	triangles.clear();
+	circles.clear();
 	count=0;
+	done = false;
 }
 
 
@@ -149,7 +103,7 @@ void Delaunay::computeSupertriangle(const std::vector<Point>& ipoints)
 	assert(M != FLT_MAX);
 
 	Point p;
-	float scale = 4.0;
+	float scale = 3.0;
 
 	// Point 1
 	p.x = scale * M; 
@@ -184,49 +138,212 @@ bool Delaunay::ready() const
 
 void Delaunay::step()
 {
-	if (count == 0) 
-		computeSupertriangle(ipoints);
-	else
+	if (!done)
 	{
-		if (count < ipoints.size() + 3)
-		{
-			// Pasos intermedios
-			std::vector<triangle *> containers;
-			findTrianglesWhoseCircumcircleContainsPoint(points[count], containers);
-			
-		}
+		if (count == 0)
+			computeSupertriangle(ipoints);
 		else
 		{
-			// Borrar supertriangulo y sus lineas
+			if (count < ipoints.size() + 3)
+			{
+				// Pasos intermedios
+
+				cout << "======================================================================" << endl << endl;
+				std::vector<triangle *> containers;
+				std::vector<unsigned int> boundary;
+				findTrianglesWhoseCircumcircleContainsPoint(points[count], containers);
+				computeBoundary(containers, boundary);
+				deleteInvalidTriangles(containers);
+				triangulateCavity(count, boundary);
+				count++;
+
+				containers.clear();
+				boundary.clear();
+			}
+			else if (count == ipoints.size() + 3)
+			{
+				deleteTrianglesWithSupertriangleVertexs();
+				done = true;
+			}
 		}
 	}
 }
 
-void Delaunay::findTrianglesWhoseCircumcircleContainsPoint(const Point& r, std::vector<triangle*>& containers) const
+void Delaunay::findTrianglesWhoseCircumcircleContainsPoint(const Point& r, std::vector<triangle*>& containers)
 {
 	std::map<triangle*, triangle*>::const_iterator it;
 
 	for (it = triangles.begin(); it != triangles.end(); it++)
 	{
+		Point center;
+		float radious;
+		if (Circumcircle(points[it->second->i], points[it->second->j], points[it->second->k], center, radious))
+		{
+			Circle circle(center, radious);
+			circles.push_back(circle);
 
+			if (PointInCircle(r, circle.c, circle.r))
+			{
+				containers.push_back(it->second);
+			}
+		}
 	}
 }
 
-void Delaunay::computeBoundary(const std::vector<triangle*>& region, std::vector<unsigned int>& boundary) const
+void Delaunay::computeBoundary(const std::vector<triangle*>& region, std::vector<unsigned int>& boundary)
 {
+	bool isShared = false;
+	vector<Edge> sharedEdges;
+	cout << endl;
+	cout << "REGIONS: " << endl;
+	for (unsigned i = 0; i < region.size(); i++)
+	{
+		cout << region[i]->i << " , " << region[i]->j << " , " << region[i]->k << endl;
+	}
+	cout << endl;
+	if (region.size() == 1)
+	{
+		for (int p = 0; p < 3; p++)
+		{
+			int next = p + 1;
+			if (next == 3)
+				next = 0;
+			Point edge = Point(region[0]->v[p], region[0]->v[next]);
+			boundary.push_back(edge.x);
+			boundary.push_back(edge.y);
+		}
+	}
+	else
+	{
+		for (unsigned i = 0; i < region.size() - 1; i++)
+		{
+			for (int p1 = 0; p1 < 3; p1++)
+			{
+				int next1 = p1 + 1;
 
+				if (next1 == 3)
+					next1 = 0;
+				isShared = false;
+				Edge edge1 = Edge(region[i]->v[p1], region[i]->v[next1]);
+				cout << endl;
+				cout << "COMPARING :" << endl << endl;;
+				cout << "EDGE 1: " << edge1.a << " , " << edge1.b << endl << endl;;
+				cout << "WITH: " << endl << endl;;
+				for (unsigned j = i + 1; j < region.size(); j++)
+				{
+					for (int p2 = 0; p2 < 3; p2++)
+					{
+						int next2 = p2 + 1;
+						if (next2 == 3)
+							next2 = 0;
+						Edge edge2 = Edge(region[j]->v[p2], region[j]->v[next2]);
+						cout << "EDGE 2: " << edge2.a << " , " << edge2.b << endl << endl;;
+						if (edge1 == edge2)
+						{
+							isShared = true;
+							sharedEdges.push_back(edge1);
+							cout << "SHARED WITH ";
+							cout << "EDGE 2: " << edge2.a << " , " << edge2.b << endl << endl;;
+						}
+					}
+				}
+				if (!isShared)
+				{
+					bool inside = false;
+					for (unsigned i = 0; i < sharedEdges.size(); i++)
+					{
+						if (sharedEdges[i] == edge1)
+							inside = true;
+					}
+					if (!inside)
+					{
+						boundary.push_back(edge1.a);
+						boundary.push_back(edge1.b);
+					}
+				}
+			}
+		}
+		int lastTriangle = region.size() - 1;
+		// To include edges of the las triangle
+		for (int p = 0; p < 3; p++)
+		{
+			bool inside = false;
+			int next = p + 1;
+			if (next == 3)
+				next = 0;
+			Edge edge = Edge(region[lastTriangle]->v[p], region[lastTriangle]->v[next]);
+			for (unsigned i = 0; i < sharedEdges.size(); i++)
+			{
+				if (sharedEdges[i] == edge)
+					inside = true;
+			}
+			if (!inside)
+			{
+				boundary.push_back(edge.a);
+				boundary.push_back(edge.b);
+			}
+		}
+	}
+	
 }
 
-void Delaunay::deleteInvalidTriangles(std::vector<triangle*>& triangles)
+void Delaunay::deleteInvalidTriangles(std::vector<triangle*>& badTriangles)
 {
+	std::map<triangle*, triangle*>::const_iterator it;
+
+	cout << endl;
+	cout << "TRIANGLES BEFORE: " << endl;
+	for (it = triangles.begin(); it != triangles.end(); it++)
+	{
+		cout << it->second->i << " , " << it->second->j << " , " << it->second->k << endl;
+	}
+
+	for (unsigned i = 0; i < badTriangles.size(); i++)
+	{
+		triangles.erase(badTriangles[i]);
+	}
+
+	cout << endl;
+	cout << "TRIANGLES AFTER: " << endl;
+	for (it = triangles.begin(); it != triangles.end(); it++)
+	{
+		cout << it->second->i << " , " << it->second->j << " , " << it->second->k << endl;
+	}
 }
 
 void Delaunay::triangulateCavity(const unsigned int r, const std::vector<unsigned int>& boundary)
 {
+	cout << endl << "WITH NEW VERTEX : " << r << endl << endl;
+	cout << "TRIANGLES CREATED: " << endl << endl;
+	for (unsigned i = 0; i < boundary.size(); i = i + 2)
+	{
+		cout << r << " , " << boundary[i] << " , " << boundary[i + 1] << endl;
+		addTriangle(r, boundary[i], boundary[i + 1]);
+	}
 }
 
 void Delaunay::deleteTrianglesWithSupertriangleVertexs()
 {
+	std::map<triangle*, triangle*>::const_iterator it;
+
+	bool found = false;
+
+	it = triangles.begin();
+	while (it != triangles.end())
+	{
+		found = false;
+		for (int i = 0; i < 3; i++)
+		{
+			if (it->second->v[i] == 0 || it->second->v[i] == 1 || it->second->v[i] == 2)
+			{
+				triangles.erase(it++);
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			it++;
+	}
 }
 
 // rendering functions (for debugging purposes)
@@ -288,7 +405,7 @@ void Delaunay::renderCurrentVertexs()
 			glVertex2f(points[i].x,points[i].y);
 		}
 	}
-	
+
 	glEnd();
 
 }
@@ -320,9 +437,9 @@ void Delaunay::renderCurrentTriangles()
 		i = it->second->i;
 		j = it->second->j;
 		k = it->second->k;
-		assert(i<ipoints.size());
-		assert(j<ipoints.size());
-		assert(k<ipoints.size());
+		assert(i<points.size());
+		assert(j<points.size());
+		assert(k<points.size());
 
 		p.x = points[i].x;
 		p.y = points[i].y;
@@ -340,5 +457,46 @@ void Delaunay::renderCurrentTriangles()
 
 void Delaunay::renderCurrentCircles()
 {
+	for (unsigned i = 0; i < circles.size(); i++)
+		drawCircle(circles[i].c, circles[i].r);
+}
 
+void Delaunay::drawCircle(Point c, float r)
+{
+	glBegin(GL_LINE_LOOP);
+	for (int i = 0; i < 1000; i++)
+	{
+		float theta = 2.0f * 3.1415926f * float(i) / float(1000);//get the current angle
+
+		float x = r * cosf(theta);//calculate the x component
+		float y = r * sinf(theta);//calculate the y component
+
+		glVertex2f(x + c.x, y + c.y);//output vertex
+
+	}
+	glEnd();
+}
+
+
+void Delaunay::drawString(int x, int y, const char* string)
+{
+	int i, len;
+	glRasterPos2f(x, y);
+	glColor3f(1.0f, 0.0f, 0.0f);
+	len = strlen(string);
+	for (i = 0; i < len; i++)
+	{
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, string[i]);
+	}
+}
+
+void Delaunay::renderIndex()
+{
+	char buffer[4];
+
+	for (unsigned i = 0; i < points.size(); i++)
+	{
+		_itoa_s(i, buffer, 10);
+		drawString(points[i].x + 1, points[i].y, buffer);
+	}
 }
