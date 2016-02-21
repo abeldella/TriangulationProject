@@ -44,7 +44,8 @@ bool PointInCircle(const Point& p, const Point& center, float r)
 
 	distance = sqrt((double)(center.x - p.x)*(center.x - p.x) + (center.y - p.y)*(center.y - p.y));
 
-	if (distance <= r)
+	// It's summed by 0.001 to solve rounding errors in calculation
+	if (distance <= (r + 0.001))
 		return true;
 	else
 		return false;

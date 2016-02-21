@@ -80,7 +80,7 @@ void init()
 	{
 
 		float sinf,cosf,theta;
-		for (i=0;i<10;i++)
+		for (i=0;i<9;i++)
 		{
 			theta = i/((float)(10-1));
 			theta*=2*3.14159597;
